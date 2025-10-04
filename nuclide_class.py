@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Nuclide:
     """
     Represents a radioactive nuclide with decay and production properties.
