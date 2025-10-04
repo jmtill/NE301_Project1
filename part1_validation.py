@@ -11,6 +11,7 @@ ts_6 = "timestep_0.0005_data"
 
 timesteps = [0.45,0.40,0.35, 0.30, 0.25,0.20, 0.15, 0.10]
 
+
 df_1 = pd.read_csv(f"{parent_path}/{ts_1}.csv")
 df_2 = pd.read_csv(f"{parent_path}/{ts_2}.csv")
 df_3 = pd.read_csv(f"{parent_path}/{ts_3}.csv")

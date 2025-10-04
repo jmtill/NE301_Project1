@@ -239,6 +239,7 @@ def check_convergence(tolerance, nuclides: dict[str, Nuclide], timestep_i, time_
 
         dt_solver.run()
 
+
         half_dt_solver = DecaySolver(nuclides=chain2,
                                    timestep=(dt/2),
                                    timestep_unit="seconds",

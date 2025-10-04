@@ -7,7 +7,6 @@ from pandas import DataFrame
 from pathlib import Path
 
 
-
 class DecaySolver:
     """
     Manages the simulation of radioactive nuclide decay using the Euler method.

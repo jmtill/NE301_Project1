@@ -2,6 +2,7 @@ from decay_solver import DecaySolver
 from nuclide_class import Nuclide
 
 
+
 def get_nuc_number(nuclide: Nuclide, target: float = 300.0):
     # chooses the key whose numeric value is closest to target
     d = nuclide.decay_data
