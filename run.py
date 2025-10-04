@@ -43,6 +43,7 @@ decay_solver = DecaySolver(nuclides=nuclides,
                            save_name=f"timestep_{timestep}"
                            )
 
+# run solver
 decay_solver.run()
 
 
