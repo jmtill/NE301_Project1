@@ -4,42 +4,32 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 from pandas import DataFrame
+from decay_solver import DecaySolver
+import copy
 
 
-nuclide_a = Nuclide(name="A",
-                    half_life=1.2,
-                    half_life_unit="minutes",
-                    parents = None,
-                    external_prod_rate=20000,
-                    prod_rate_unit_time="minutes",
-                    time=0.0,
-                    n_0 = 0.0
-                    )
+def get_nuc_number(nuclide: Nuclide, target: float = 300.0):
+    """
+    Determines the nuclide key and its corresponding value from the decay data
+    dictionary in the `nuclide` object that is closest to the given `target` value.
+    If no specific `target` is provided, the default value of 300.0 is used. The method
+    iterates over the decay data keys and computes the absolute difference between
+    each key and the target, returning the key with the smallest difference.
 
-nuclide_b = Nuclide(name="B",
-                    parents=["A"],
-                    half_life=2.0,
-                    half_life_unit="minutes",
-                    time=0.0,
-                    n_0 = 0.0
-                    )
-parent_path = "/Users/jonathantill/PycharmProjects/NE301_Project1/data"
-ts_1 = "timestep_0.05_data"
-ts_2 = "timestep_0.01_data"
-ts_3 = "timestep_0.001_data"
-ts_4 = "timestep_0.0001_data"
-ts_5 = "timestep_0.005_data"
-ts_6 = "timestep_0.0005_data"
+    :param nuclide: Object used to access its `decay_data` dictionary for comparison.
+    :type nuclide: Nuclide
+    :param target: Numeric value to find the closest corresponding key in nuclide's
+        decay data. Defaults to 300.0.
+    :type target: float
+    :return: A tuple containing the key closest to the `target` and its associated
+        value from the nuclide's decay data.
+    :rtype: tuple
+    """
 
-df_1 = pd.read_csv(f"{parent_path}/{ts_1}.csv")
-df_2 = pd.read_csv(f"{parent_path}/{ts_2}.csv")
-df_3 = pd.read_csv(f"{parent_path}/{ts_3}.csv")
-df_4 = pd.read_csv(f"{parent_path}/{ts_4}.csv")
-df_5 = pd.read_csv(f"{parent_path}/{ts_5}.csv")
-df_6 = pd.read_csv(f"{parent_path}/{ts_6}.csv")
-
-frames = [df_1, df_2, df_3, df_4, df_5, df_6]
-
+    # chooses the key whose numeric value is closest to target
+    d = nuclide.decay_data
+    nearest_key = min(d, key=lambda k: abs(float(k) - target))
+    return nearest_key, d[nearest_key]
 
 
 def NA_analytical(nuclide: Nuclide, time: float):
@@ -97,7 +87,6 @@ def NB_analytical(nuclide: Nuclide, parent: Nuclide, time: float):
 
     n_t = parent_prod * (first_term - n/d)
     return float(n_t)
-
 
 
 def plot_eq_vals(dataset: DataFrame,
@@ -193,9 +182,11 @@ def plot_numer_error(time: float, frames: list, nuclideA: Nuclide, nuclideB: Nuc
 
 
         a_error = abs(n_A_an - n_A_num)
+        print("Nuclide A absolute error: ", a_error)
+
         b_error = abs(n_B_an - n_B_num)
-        print(n_B_an, n_B_num, "\n")
-        print(b_error)
+
+        print("Nuclide B absolute error: ", b_error, "\n")
 
         nA_errors.append(a_error)
         nB_errors.append(b_error)
@@ -225,13 +216,65 @@ def plot_numer_error(time: float, frames: list, nuclideA: Nuclide, nuclideB: Nuc
     return
 
 
+def check_convergence(tolerance, nuclides: dict[str, Nuclide], timestep_i, time_stop):
+    dt = timestep_i
+    error_inf: float = 0
 
+    while True:
+        error_inf: float = 0
 
-plot_eq_vals(dataset=df_1, nuclideA=nuclide_a, nuclideB=nuclide_b)
+        chain1 = copy.deepcopy(nuclides)
+        chain2 = copy.deepcopy(nuclides)
 
+        dt_solver = DecaySolver(nuclides=chain1,
+                                   timestep=dt,
+                                   timestep_unit="seconds",
+                                   duration=time_stop,
+                                   duration_unit="seconds",
+                                   plot_data=False,
+                                   save_data=False,
+                                   data_dir="./data",
+                                   save_name=f"p2_timestep_{timestep_i}"
+                                )
 
-plot_numer_error(time=5, frames=frames, nuclideA=nuclide_a, nuclideB=nuclide_b)
+        dt_solver.run()
 
+        half_dt_solver = DecaySolver(nuclides=chain2,
+                                   timestep=(dt/2),
+                                   timestep_unit="seconds",
+                                   duration=time_stop,
+                                   duration_unit="seconds",
+                                   plot_data=False,
+                                   save_data=False,
+                                   data_dir="./data",
+                                   save_name=f"p2_timestep_{(timestep_i)/2}")
 
+        half_dt_solver.run()
+
+        for name in (chain1.keys() & chain2.keys()):
+            nuclide1 = chain1[name]
+            nuclide2 = chain2[name]
+
+            # Get last recorded populations
+            k1 = next(reversed(nuclide1.decay_data))
+            k2 = next(reversed(nuclide2.decay_data))
+
+            n_1 = nuclide1.decay_data[k1]
+            n_2 = nuclide2.decay_data[k2]
+
+            # Update max absolute difference
+            error_inf = max(error_inf, abs(n_1 - n_2))
+
+        if error_inf < tolerance:
+            print(f"Converged at dt={dt / 2}, error={error_inf}")
+            for nuclide in chain2.values():
+                _, val = get_nuc_number(nuclide, target=3600.0)
+                print(f"nuclide {nuclide.name}: {val}")
+            print("\n")
+
+            break
+        else:
+            print(f"Did not converge at dt={dt / 2}, error={error_inf}")
+            dt = dt / 2
 
 
